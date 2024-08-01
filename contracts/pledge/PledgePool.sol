@@ -45,11 +45,12 @@ contract PledgePool is SafeTransfer, AdminControl, ReentrancyGuard {
         address multiSignature
     ) public initializer {
         __AdminControl_init(multiSignature);
+
         _setup(_feeAddress, _swapRouter, _oracle);
     }
 
     // Functions
-    //// receive/fallbacl
+    //// receive/fallback
     //// external
     ////// OWNER FUNCTIONS
 

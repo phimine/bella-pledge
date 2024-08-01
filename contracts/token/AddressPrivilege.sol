@@ -31,15 +31,16 @@ contract AddressPrivilege is MultiSignatureClient {
         __MultiSignatureClient_init(multiSignature);
     }
 
+    //// externals
     function addMinter(
         address _minter
-    ) public validAddress(_minter) returns (bool) {
+    ) public validCall validAddress(_minter) returns (bool) {
         return _minters.add(_minter);
     }
 
     function delMinter(
         address _minter
-    ) public validAddress(_minter) returns (bool) {
+    ) public validCall validAddress(_minter) returns (bool) {
         return _minters.remove(_minter);
     }
 

@@ -6,20 +6,24 @@ const {
     upgrades,
 } = require("hardhat");
 const { verify } = require("../utils/verify");
-const { devChains } = require("../helper-hardhat-config");
+const {
+    devChains,
+    SIGNATURE_THRESHOLD_DEV,
+    networkConfig,
+} = require("../helper-hardhat-config");
 
 const CONTRACT_NAME = "MultiSignature";
 
 module.exports = async () => {
     const { log } = deployments;
-    const [deployer, userA, userB, userC] = await ethers.getSigners();
 
     const multiSignatureFactory =
         await ethers.getContractFactory(CONTRACT_NAME);
     const args = [
-        [deployer.address, userA.address, userB.address, userC.address],
-        "2",
+        networkConfig[network.config.chainId].multi_signers,
+        networkConfig[network.config.chainId].signature_threshold,
     ];
+
     const multisignatureContract = await upgrades.deployProxy(
         multiSignatureFactory,
         args,

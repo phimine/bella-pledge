@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import "./IMultiSignature.sol";
 
@@ -10,7 +11,7 @@ import "./IMultiSignature.sol";
  * @author Carl Fu
  * @notice
  */
-contract MultiSignatureClient is Initializable {
+contract MultiSignatureClient is Initializable, UUPSUpgradeable {
     uint256 private constant multiSignaturePosition =
         uint256(keccak256("org.multiSignature.store"));
     uint256 private constant DEFAULT_INDEX = 0;
@@ -64,4 +65,8 @@ contract MultiSignatureClient is Initializable {
             sstore(position, value)
         }
     }
+
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override validCall {}
 }

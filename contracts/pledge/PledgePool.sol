@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import "../multisignature/MultiSignatureClient.sol";
 import "../token/DebtToken.sol";
@@ -20,7 +20,7 @@ import "./structs/PoolState.sol";
  * @author Carl Fu
  * @notice
  */
-contract PledgePool is SafeTransfer, AdminControl, ReentrancyGuard {
+contract PledgePool is SafeTransfer, AdminControl, ReentrancyGuardUpgradeable {
     // Type Declarations
 
     // State Variables
@@ -45,6 +45,7 @@ contract PledgePool is SafeTransfer, AdminControl, ReentrancyGuard {
         address multiSignature
     ) public initializer {
         __AdminControl_init(multiSignature);
+        __ReentrancyGuard_init();
 
         _setup(_feeAddress, _swapRouter, _oracle);
     }

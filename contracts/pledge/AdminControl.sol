@@ -73,21 +73,21 @@ contract AdminControl is PausableUpgradeable, MultiSignatureClient {
 
     ////// OWNER FUNCTIONS
     function setMinDeposit(uint256 _minAmount) external validCall {
-        require(_minAmount >= 0, "PledgePool: _minAmount is 0");
+        require(_minAmount > 0, "PledgePool: _minAmount is 0");
         uint256 old = minDeposit;
         minDeposit = _minAmount;
         emit SetMinDeposit(msg.sender, old, minDeposit);
     }
 
     function setLendFee(uint256 _lendFee) external validCall {
-        require(_lendFee >= 0, "PledgePool: _lendFee is 0");
+        require(_lendFee > 0, "PledgePool: _lendFee is 0");
         uint256 old = lendFee;
         lendFee = _lendFee;
         emit SetLendFee(msg.sender, old, lendFee);
     }
 
     function setBorrowFee(uint256 _borrowFee) external validCall {
-        require(_borrowFee >= 0, "PledgePool: _borrowFee is 0");
+        require(_borrowFee > 0, "PledgePool: _borrowFee is 0");
         uint256 old = borrowFee;
         borrowFee = _borrowFee;
         emit SetBorrowFee(msg.sender, old, borrowFee);
@@ -136,13 +136,34 @@ contract AdminControl is PausableUpgradeable, MultiSignatureClient {
             _maxSupply > 0,
             "PledgePool.createPool: max supply is less than 0"
         );
-        require(_lendToken != address(0), "");
-        require(_borrowToken != address(0), "");
-        require(_spToken != address(0), "");
-        require(_jpToken != address(0), "");
-        require(_mortgageRate > 0, "");
-        require(_interestRate > 0, "");
-        require(_autoLiquidateThreshold > 0, "");
+        require(
+            _lendToken != address(0),
+            "PledgePool.createPool: _lendToken is 0x"
+        );
+        require(
+            _borrowToken != address(0),
+            "PledgePool.createPool: _borrowToken is 0x"
+        );
+        require(
+            _spToken != address(0),
+            "PledgePool.createPool: _spToken is 0x"
+        );
+        require(
+            _jpToken != address(0),
+            "PledgePool.createPool: _jpToken is 0x"
+        );
+        require(
+            _mortgageRate > 0,
+            "PledgePool.createPool: _mortgageRate is le 0"
+        );
+        require(
+            _interestRate > 0,
+            "PledgePool.createPool: _interestRate is le 0"
+        );
+        require(
+            _autoLiquidateThreshold > 0,
+            "PledgePool.createPool: _autoLiquidateThreshold is le 0"
+        );
 
         // Effect
         poolBaseInfos.push(

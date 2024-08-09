@@ -10,7 +10,7 @@ library PriceAggregator {
     function getPrice(
         PledgeAggregator memory aggregator
     ) internal view returns (uint256) {
-        (, int price, , , ) = aggregator.aggregator.latestRoundData();
+        (, int256 price, , , ) = aggregator.aggregator.latestRoundData();
         uint256 decimals = aggregator.decimals;
 
         if (decimals < DEFAULT_DECIMAL) {

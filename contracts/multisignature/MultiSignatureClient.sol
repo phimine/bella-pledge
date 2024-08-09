@@ -12,7 +12,7 @@ import "./IMultiSignature.sol";
  * @notice
  */
 contract MultiSignatureClient is Initializable, UUPSUpgradeable {
-    uint256 private constant multiSignaturePosition =
+    uint256 private constant MULTI_SIGN_POSITION =
         uint256(keccak256("org.multiSignature.store"));
     uint256 private constant DEFAULT_INDEX = 0;
 
@@ -23,7 +23,7 @@ contract MultiSignatureClient is Initializable, UUPSUpgradeable {
             multiSignature != address(0),
             "MultiSignatureClient: Zero address!"
         );
-        saveAddress(multiSignaturePosition, uint256(uint160(multiSignature)));
+        saveAddress(MULTI_SIGN_POSITION, uint256(uint160(multiSignature)));
     }
 
     modifier validCall() {
@@ -49,7 +49,7 @@ contract MultiSignatureClient is Initializable, UUPSUpgradeable {
     }
 
     function getAddress() internal view returns (address) {
-        return address(uint160(getAddress(multiSignaturePosition)));
+        return address(uint160(getAddress(MULTI_SIGN_POSITION)));
     }
 
     function getAddress(

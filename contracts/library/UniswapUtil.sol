@@ -21,7 +21,7 @@ library UniswapUtil {
             return 0;
         }
         address[] memory path = getSwapPairPath(uniswap, inToken, outToken);
-        uint[] memory amounts = uniswap.getAmountsIn(swapAmountOut, path);
+        uint256[] memory amounts = uniswap.getAmountsIn(swapAmountOut, path);
         return amounts[0];
     }
 

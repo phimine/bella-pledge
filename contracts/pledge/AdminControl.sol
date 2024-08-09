@@ -381,7 +381,7 @@ contract AdminControl is PausableUpgradeable, MultiSignatureClient {
         uint256 buyAmount = (totalLendAmount * (BASE_DECIMAL + lendFee)) /
             BASE_DECIMAL;
 
-        // // 2. 通过swapRouter用borrowToken换lendToken
+        // // // 2. 通过swapRouter用borrowToken换lendToken
         (address sellToken, address buyToken) = (
             baseInfo.borrowToken,
             baseInfo.lendToken
@@ -418,6 +418,25 @@ contract AdminControl is PausableUpgradeable, MultiSignatureClient {
             poolId,
             uint256(PoolState.EXECUTION),
             uint256(PoolState.FINISH)
+        );
+    }
+
+    function liquidate(
+        uint256 poolId
+    )
+        external
+        validCall
+        validPoolId(poolId)
+        timeAfter(poolId)
+        stateExecution(poolId)
+    {
+        // Check: 调用者权限、poolId存在、状态Execution、时间在结算之后
+        // Effect
+        // Interactions
+        emit PoolStateChange(
+            poolId,
+            uint256(PoolState.EXECUTION),
+            uint256(PoolState.LIQUIDATION)
         );
     }
 

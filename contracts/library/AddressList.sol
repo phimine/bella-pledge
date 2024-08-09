@@ -34,7 +34,7 @@ library AddressList {
         address _address
     ) internal pure returns (bool) {
         uint256 listSize = addressList.length;
-        for (uint i = 0; i < listSize; i++) {
+        for (uint256 i = 0; i < listSize; i++) {
             address one = addressList[i];
             if (one == _address) {
                 return true;

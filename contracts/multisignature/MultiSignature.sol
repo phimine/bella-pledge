@@ -61,7 +61,7 @@ contract MultiSignature is IMultiSignature, MultiSignatureClient {
             _owners.length >= _threshold,
             "MultiSignature: threshold is greater than owners length"
         );
-        for (uint i = 0; i < _owners.length; i++) {
+        for (uint256 i = 0; i < _owners.length; i++) {
             address _owner = _owners[i];
             require(_owner != address(0), "MultiSignature: Zero address");
             if (!isOwner[_owner]) {

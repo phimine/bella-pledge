@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract SafeTransfer {
+library SafeTransfer {
     using SafeERC20 for IERC20;
 
     event SafeTransferFrom(
@@ -14,25 +14,18 @@ contract SafeTransfer {
         uint256 amount
     );
 
-    function safeReceive(address token, uint256 amount) internal {
-        if (token != address(0) && amount > 0) {
-            IERC20 oToken = IERC20(token);
-            oToken.safeTransferFrom(msg.sender, address(this), amount);
-            emit SafeTransferFrom(msg.sender, address(this), token, amount);
-        }
-    }
-
-    function safeTransfer(
-        address payable receiver,
+    function safeTransferTo(
         address token,
+        address from,
+        address to,
         uint256 amount
     ) internal {
         if (token == address(0)) {
-            receiver.transfer(amount);
-        } else {
+            payable(to).transfer(amount);
+        } else if (amount > 0) {
             IERC20 oToken = IERC20(token);
-            oToken.safeTransferFrom(address(this), receiver, amount);
+            oToken.safeTransferFrom(from, to, amount);
+            emit SafeTransferFrom(from, to, token, amount);
         }
-        emit SafeTransferFrom(address(this), receiver, token, amount);
     }
 }

@@ -12,6 +12,13 @@ const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
     solidity: "0.8.24",
+    settings: {
+        viaIR: true,
+        optimizer: {
+            enabled: true,
+            runs: 100, // Reduce 'runs' to a lower value like 100 if code size is still an issue
+        },
+    },
     defaultNetwork: "hardhat",
     networks: {
         sepolia: {

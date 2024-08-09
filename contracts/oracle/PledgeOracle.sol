@@ -44,4 +44,17 @@ contract PledgeOracle is MultiSignatureClient {
     function getPrice(address token) public view returns (uint256) {
         return tokenPriceAggregators[token].getPrice();
     }
+
+    function getPrices(
+        address[] memory tokens
+    ) public view returns (uint256[] memory prices) {
+        uint256 _length = tokens.length;
+        prices = new uint256[](_length);
+        for (uint256 i = 0; i < _length; ) {
+            prices[i] = getPrice(tokens[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
 }

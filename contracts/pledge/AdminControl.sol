@@ -12,6 +12,8 @@ import "./structs/PoolBaseInfo.sol";
 import "./structs/PoolDataInfo.sol";
 import "./SafeTransfer.sol";
 
+error AdminControl__InsuffienceSwapAmount();
+
 contract AdminControl is PausableUpgradeable, MultiSignatureClient {
     using UniswapUtil for IUniswapV2Router02;
     using SafeTransfer for address;
@@ -367,52 +369,29 @@ contract AdminControl is PausableUpgradeable, MultiSignatureClient {
         PoolBaseInfo storage baseInfo = poolBaseInfos[poolId];
         PoolDataInfo storage dataInfo = poolDataInfos[poolId];
         baseInfo.status = PoolState.FINISH;
-        // 1. 计算需要购买的lendToken总量：settleAmountLend -> interest -> lendAmount + lendFee -> buyAmount
-        // interest = periods / year * interestRate * settleAmountLend
-        uint256 _settleAmountLend = dataInfo.settleAmountLend;
-        uint256 _interestRate = baseInfo.interestRate;
-        uint256 timeRatio = ((block.timestamp - baseInfo.settleTime) *
-            BASE_DECIMAL) / BASE_YEAR;
-        uint256 interest = (timeRatio * _interestRate * _settleAmountLend) /
-            BASE_DECIMAL /
-            BASE_DECIMAL;
-        uint256 totalLendAmount = _settleAmountLend + interest;
-        // buyAmount = totalLendAmount * (1 + lendFee)
-        uint256 buyAmount = (totalLendAmount * (BASE_DECIMAL + lendFee)) /
-            BASE_DECIMAL;
 
-        // // // 2. 通过swapRouter用borrowToken换lendToken
-        (address sellToken, address buyToken) = (
-            baseInfo.borrowToken,
-            baseInfo.lendToken
-        );
-        uint256 swapAmountIn = uniswap.getSwapAmountIn(
-            sellToken,
-            buyToken,
-            buyAmount
-        );
-        (uint256 swapBorrowAmount, uint256 swapLendAmount) = uniswap.swap(
-            sellToken,
-            buyToken,
-            swapAmountIn,
-            address(this)
-        );
-
-        // 计算质押手续费
-        require(swapLendAmount >= totalLendAmount);
-        // 计算手续费
-        uint256 actualLendFee = swapLendAmount - totalLendAmount;
-        dataInfo.finishAmountLend = totalLendAmount;
-
-        // 计算借贷手续费
-        uint256 _settleAmountBorrow = dataInfo.settleAmountBorrow;
-        uint256 restAmountBorrow = _settleAmountBorrow - swapAmountIn;
-        uint256 actualBorrowFee = (restAmountBorrow * borrowFee) / BASE_DECIMAL;
-        dataInfo.finishAmountBorrow = restAmountBorrow - actualBorrowFee;
+        address inToken = baseInfo.borrowToken;
+        address outToken = baseInfo.lendToken;
+        (
+            uint256 finalAmountLend,
+            uint256 finalAmountBorrow,
+            uint256 actualLendFee,
+            uint256 actualBorrowFee
+        ) = _calFinalAmount(
+                dataInfo.settleAmountLend,
+                dataInfo.settleAmountBorrow,
+                baseInfo.interestRate,
+                baseInfo.settleTime,
+                inToken,
+                outToken,
+                false
+            );
+        dataInfo.finishAmountLend = finalAmountLend;
+        dataInfo.finishAmountBorrow = finalAmountBorrow;
 
         // Interactions: 手续费转账
-        buyToken.safeTransferTo(address(this), feeAddress, actualLendFee);
-        sellToken.safeTransferTo(address(this), feeAddress, actualBorrowFee);
+        inToken.safeTransferTo(address(this), feeAddress, actualBorrowFee);
+        outToken.safeTransferTo(address(this), feeAddress, actualLendFee);
 
         emit PoolStateChange(
             poolId,
@@ -431,8 +410,35 @@ contract AdminControl is PausableUpgradeable, MultiSignatureClient {
         stateExecution(poolId)
     {
         // Check: 调用者权限、poolId存在、状态Execution、时间在结算之后
-        // Effect
-        // Interactions
+        // Effect: pool状态LIQUIDATION、计算liquidationAmountLend、liquidationAmountBorrow
+        PoolBaseInfo storage baseInfo = poolBaseInfos[poolId];
+        PoolDataInfo storage dataInfo = poolDataInfos[poolId];
+        baseInfo.status = PoolState.LIQUIDATION;
+        // settleAmountLend -> interest -> lendFee -> lendBuyAmount
+        // liquidateAmountLend、liquidateAmountBorrow
+        address inToken = baseInfo.borrowToken;
+        address outToken = baseInfo.lendToken;
+        (
+            uint256 finalAmountLend,
+            uint256 finalAmountBorrow,
+            uint256 actualLendFee,
+            uint256 actualBorrowFee
+        ) = _calFinalAmount(
+                dataInfo.settleAmountLend,
+                dataInfo.settleAmountBorrow,
+                baseInfo.interestRate,
+                baseInfo.settleTime,
+                inToken,
+                outToken,
+                true
+            );
+        dataInfo.liquidateAmountLend = finalAmountLend;
+        dataInfo.liquidateAmountBorrow = finalAmountBorrow;
+
+        // Interactions: 手续费转账
+        inToken.safeTransferTo(address(this), feeAddress, actualBorrowFee);
+        outToken.safeTransferTo(address(this), feeAddress, actualLendFee);
+
         emit PoolStateChange(
             poolId,
             uint256(PoolState.EXECUTION),
@@ -441,6 +447,126 @@ contract AdminControl is PausableUpgradeable, MultiSignatureClient {
     }
 
     //// internals
+    function _calFinalAmount(
+        uint256 _settleAmountLend,
+        uint256 _settleAmountBorrow,
+        uint256 _interestRate,
+        uint256 _settleTime,
+        address _inToken,
+        address _outToken,
+        bool isLiquidate
+    )
+        internal
+        returns (
+            uint256 finalAmountLend,
+            uint256 finalAmountBorrow,
+            uint256 actualLendFee,
+            uint256 actualBorrowFee
+        )
+    {
+        // 1. 计算需要购买的lendToken总量：settleAmountLend -> interest -> lendAmount + lendFee -> buyAmount
+        // interest = periods / year * interestRate * settleAmountLend
+        (, uint256 totalLendAmount, uint256 buyAmount) = _calLendAmount(
+            _settleAmountLend,
+            _interestRate,
+            _settleTime
+        );
+
+        // 2. 通过swapRouter用borrowToken换lendToken
+        (uint256 swapAmountIn, uint256 swapAmountOut) = _swap(
+            _inToken,
+            _outToken,
+            buyAmount,
+            _settleAmountBorrow,
+            isLiquidate
+        );
+
+        // 3. 计算质押手续费
+        (
+            finalAmountLend,
+            finalAmountBorrow,
+            actualLendFee,
+            actualBorrowFee
+        ) = _calFinalAmount(
+            totalLendAmount,
+            _settleAmountBorrow,
+            swapAmountIn,
+            swapAmountOut,
+            isLiquidate
+        );
+    }
+
+    function _calLendAmount(
+        uint256 _settleAmountLend,
+        uint256 _interestRate,
+        uint256 _settleTime
+    )
+        internal
+        view
+        returns (uint256 interest, uint256 lendAmount, uint256 buyAmount)
+    {
+        uint256 interestPerYear = (_settleAmountLend * _interestRate) /
+            BASE_DECIMAL;
+        uint256 timeRatio = ((block.timestamp - _settleTime) * BASE_DECIMAL) /
+            BASE_YEAR;
+        interest = (interestPerYear * timeRatio) / BASE_DECIMAL;
+        lendAmount = _settleAmountLend + interest;
+
+        buyAmount = (lendAmount * (BASE_DECIMAL + lendFee)) / BASE_DECIMAL;
+    }
+
+    function _swap(
+        address inToken,
+        address outToken,
+        uint256 outAmount,
+        uint256 maxInAmount,
+        bool isLiquidate
+    ) internal returns (uint256 swapAmountIn, uint256 swapAmountOut) {
+        swapAmountIn = uniswap.getSwapAmountIn(inToken, outToken, outAmount);
+        if (swapAmountIn > maxInAmount) {
+            if (isLiquidate) {
+                swapAmountIn = maxInAmount;
+            } else {
+                revert AdminControl__InsuffienceSwapAmount();
+            }
+        }
+        (, swapAmountOut) = uniswap.swap(
+            inToken,
+            outToken,
+            swapAmountIn,
+            address(this)
+        );
+    }
+
+    function _calFinalAmount(
+        uint256 settleAmountLend,
+        uint256 settleAmountBorrow,
+        uint256 swapAmountIn,
+        uint256 swapAmountOut,
+        bool isLiquidate
+    )
+        internal
+        view
+        returns (
+            uint256 finalAmountLend,
+            uint256 finalAmountBorrow,
+            uint256 actualLendFee,
+            uint256 actualBorrowFee
+        )
+    {
+        actualLendFee = swapAmountOut - settleAmountLend;
+        if (!isLiquidate) {
+            require(actualLendFee >= 0);
+        }
+        finalAmountLend = settleAmountLend;
+
+        uint256 restAmountBorrow = settleAmountBorrow - swapAmountIn;
+        if (restAmountBorrow > 0) {
+            finalAmountBorrow = restAmountBorrow;
+            actualBorrowFee = (restAmountBorrow * borrowFee) / BASE_DECIMAL;
+        }
+    }
+
     /**
      * 通过预言机获取lendToken和borrowToken的价格
      * @param poolId pool index

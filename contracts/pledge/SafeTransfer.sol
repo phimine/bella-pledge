@@ -20,12 +20,14 @@ library SafeTransfer {
         address to,
         uint256 amount
     ) internal {
-        if (token == address(0)) {
-            payable(to).transfer(amount);
-        } else if (amount > 0) {
-            IERC20 oToken = IERC20(token);
-            oToken.safeTransferFrom(from, to, amount);
-            emit SafeTransferFrom(from, to, token, amount);
+        if (amount > 0) {
+            if (token == address(0)) {
+                payable(to).transfer(amount);
+            } else {
+                IERC20 oToken = IERC20(token);
+                oToken.safeTransferFrom(from, to, amount);
+                emit SafeTransferFrom(from, to, token, amount);
+            }
         }
     }
 }
